@@ -123,9 +123,9 @@ async function handleExcelUpload(event) {
     
     try {
         console.log('ステップ1: Excelファイルを読み込み中...');
-        const data = await readExcelFile(file);
-        console.log('ステップ1完了: データ件数', data.length);
-        console.log('読み込んだデータ:', data);
+        const shiftData = await readExcelFile(file);
+        console.log('ステップ1完了: データ件数', shiftData.length);
+        console.log('読み込んだデータ:', shiftData);
         
         // ファイル名から日付を抽出
         const fileName = file.name;
@@ -139,11 +139,31 @@ async function handleExcelUpload(event) {
             console.log('日付抽出:', year, month, day);
         }
         
-        // データをアップロード
-        console.log('ステップ2: Googleスプレッドシートにアップロード中...');
+        // ステップ2: URL管理データを取得
+        console.log('ステップ2: URL管理データ取得中...');
+        await loadUrlData();
+        console.log('ステップ2完了: URL管理データ取得完了', urlData.length, '件');
+        
+        // ステップ3: 各従業員のURLを照合
+        console.log('ステップ3: URL照合中...');
+        const dataWithUrls = shiftData.map(employee => {
+            // 源氏名で照合
+            const urlInfo = urlData.find(u => u.name === employee.name);
+            
+            return {
+                ...employee,
+                delidosuUrl: urlInfo?.delidosuUrl || '',
+                anecanUrl: urlInfo?.anecanUrl || '',
+                ainoshizukuUrl: urlInfo?.ainoshizukuUrl || ''
+            };
+        });
+        console.log('ステップ3完了: URL照合完了');
+        
+        // ステップ4: URL情報も含めてスプレッドシートに保存
+        console.log('ステップ4: Googleスプレッドシートにアップロード中...');
         console.log('API URL:', API_URL);
-        await uploadShiftData(data);
-        console.log('ステップ2完了: アップロード成功');
+        await uploadShiftData(dataWithUrls);
+        console.log('ステップ4完了: アップロード成功');
         
         showToast('Excelファイルをアップロードしました', 'success');
         console.log('=== デバッグ: アップロード完了 ===');
