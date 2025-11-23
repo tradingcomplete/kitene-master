@@ -102,8 +102,13 @@ async function loadShiftData() {
         console.log('loadShiftData: レスポンス:', result);
         
         if (result.success) {
-            shiftData = result.data;
+            // ★★★ 時刻データをformatTimeで変換 ★★★
+            shiftData = result.data.map(shift => ({
+                ...shift,
+                time: formatTime(shift.time)
+            }));
             console.log('loadShiftData: データ件数', shiftData.length);
+            console.log('loadShiftData: 時刻変換後の最初のデータ:', shiftData[0]);
             renderShiftList();
         } else {
             console.error('loadShiftData: エラー:', result.error);
@@ -441,10 +446,11 @@ function renderShiftList() {
         };
     });
     
-    // ★★★ 出勤時間順にソート ★★★
+    // ★★★ 出勤時間順にソート（深夜営業対応） ★★★
     mergedData.sort((a, b) => {
-        if (a.time < b.time) return -1;
-        if (a.time > b.time) return 1;
+        const timeA = parseTime(a.time);
+        const timeB = parseTime(b.time);
+        if (timeA !== timeB) return timeA - timeB;
         return a.name.localeCompare(b.name, 'ja');
     });
     
