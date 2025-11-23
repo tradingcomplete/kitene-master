@@ -240,19 +240,19 @@ function parseTime(timeStr) {
 async function uploadShiftData(data) {
     try {
         console.log('uploadShiftData: リクエスト送信中...');
-        console.log('送信データ:', JSON.stringify({ data: data }));
+        console.log('送信データ件数:', data.length);
         
-        // データをBase64エンコードしてGETパラメータとして送信（CORS回避）
-        const dataStr = JSON.stringify({ data: data });
-        const encodedData = encodeURIComponent(dataStr);
-        
-        const response = await fetch(`${API_URL}?action=updateShiftData&postData=${encodedData}`, {
-            method: 'GET'
+        const response = await fetch(`${API_URL}?action=updateShiftData`, {
+            method: 'POST',
+            mode: 'cors',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ data: data })
         });
         
         console.log('uploadShiftData: レスポンス受信');
         console.log('ステータスコード:', response.status);
-        console.log('ステータステキスト:', response.statusText);
         
         const resultText = await response.text();
         console.log('レスポンステキスト:', resultText);
@@ -261,7 +261,7 @@ async function uploadShiftData(data) {
         console.log('パース済みレスポンス:', result);
         
         if (result.success) {
-            console.log('uploadShiftData: 成功、シフトデータをリロード');
+            console.log('uploadShiftData: 成功');
             await loadShiftData();
         } else {
             console.error('uploadShiftData: APIエラー', result.error);
@@ -333,17 +333,18 @@ function renderShiftList() {
 
 async function toggleCheck(name, checked) {
     try {
-        const dataStr = JSON.stringify({ name: name, checked: checked });
-        const encodedData = encodeURIComponent(dataStr);
-        
-        const response = await fetch(`${API_URL}?action=updateCheckStatus&postData=${encodedData}`, {
-            method: 'GET'
+        const response = await fetch(`${API_URL}?action=updateCheckStatus`, {
+            method: 'POST',
+            mode: 'cors',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ name: name, checked: checked })
         });
         
         const result = await response.json();
         
         if (result.success) {
-            // ローカルデータも更新
             const index = shiftData.findIndex(s => s.name === name);
             if (index !== -1) {
                 shiftData[index].checked = checked ? '済' : '';
@@ -502,11 +503,14 @@ async function saveUrlData() {
     
     try {
         const action = currentEditName ? 'updateUrlData' : 'addUrlData';
-        const dataStr = JSON.stringify(data);
-        const encodedData = encodeURIComponent(dataStr);
         
-        const response = await fetch(`${API_URL}?action=${action}&postData=${encodedData}`, {
-            method: 'GET'
+        const response = await fetch(`${API_URL}?action=${action}`, {
+            method: 'POST',
+            mode: 'cors',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
         });
         
         const result = await response.json();
@@ -514,7 +518,7 @@ async function saveUrlData() {
         if (result.success) {
             closeModal();
             await loadUrlData();
-            await loadShiftData(); // シフトリストも更新
+            await loadShiftData();
             showToast(result.message, 'success');
         } else {
             showToast(result.error, 'error');
@@ -533,11 +537,13 @@ async function confirmDelete() {
     if (!currentDeleteName) return;
     
     try {
-        const dataStr = JSON.stringify({ name: currentDeleteName });
-        const encodedData = encodeURIComponent(dataStr);
-        
-        const response = await fetch(`${API_URL}?action=deleteUrlData&postData=${encodedData}`, {
-            method: 'GET'
+        const response = await fetch(`${API_URL}?action=deleteUrlData`, {
+            method: 'POST',
+            mode: 'cors',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ name: currentDeleteName })
         });
         
         const result = await response.json();
@@ -545,7 +551,7 @@ async function confirmDelete() {
         if (result.success) {
             closeDeleteModal();
             await loadUrlData();
-            await loadShiftData(); // シフトリストも更新
+            await loadShiftData();
             showToast(result.message, 'success');
         } else {
             showToast(result.error, 'error');
