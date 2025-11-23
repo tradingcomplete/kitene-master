@@ -421,6 +421,9 @@ function renderShiftList() {
     });
     
     listElement.innerHTML = mergedData.map(shift => {
+        // ★★★ 時刻を適切にフォーマット ★★★
+        const formattedTime = formatTime(shift.time);
+        
         // ★★★ メイン店舗バッジの生成 ★★★
         let mainBadge = '';
         if (shift.mainStore) {
@@ -441,9 +444,9 @@ function renderShiftList() {
                     <div class="shift-info">
                         <input type="checkbox" class="shift-checkbox" 
                                ${shift.checked === '済' ? 'checked' : ''} 
-                               onchange="toggleCheck('${shift.name}', this.checked)">
+                               onchange="toggleCheck('${shift.name}', event)">
                         <span class="shift-name">${shift.name}</span>
-                        <span class="shift-time">${shift.time}</span>
+                        <span class="shift-time">${formattedTime}</span>
                         ${mainBadge}
                     </div>
                 </div>
@@ -467,6 +470,11 @@ function renderShiftList() {
             </div>
         `;
     }).join('');
+    
+    // ★★★ 日付表示 ★★★
+    if (currentShiftDate && document.getElementById('date-display')) {
+        document.getElementById('date-display').textContent = currentShiftDate;
+    }
     
     console.log('renderShiftList: 描画完了');
 }
@@ -496,96 +504,125 @@ function renderAllCastList() {
     listElement.style.display = 'flex';
     if (emptyElement) emptyElement.style.display = 'none';
     
-    // あいうえお順にグループ化
-    const groupedData = {};
+    // ★★★ クラス別にグループ化（姫デコ → 新人 → 通常） ★★★
+    const classGroups = {
+        '姫デコ': [],
+        '新人': [],
+        '通常': []
+    };
+    
     urlData.forEach(cast => {
-        const group = getKanaGroup(cast.name);
-        if (!groupedData[group]) {
-            groupedData[group] = [];
+        const castClass = cast.class || '通常';
+        if (classGroups[castClass]) {
+            classGroups[castClass].push(cast);
+        } else {
+            classGroups['通常'].push(cast);
         }
-        groupedData[group].push(cast);
     });
     
-    // 各グループ内で名前順にソート
-    Object.keys(groupedData).forEach(group => {
-        groupedData[group].sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+    // 各クラス内で名前順にソート
+    Object.values(classGroups).forEach(group => {
+        group.sort((a, b) => a.name.localeCompare(b.name, 'ja'));
     });
     
-    // HTML生成
-    const groupOrder = ['あ', 'か', 'さ', 'た', 'な', 'は', 'ま', 'や', 'ら', 'わ', 'その他'];
-    listElement.innerHTML = groupOrder.map(group => {
-        const casts = groupedData[group];
-        if (!casts || casts.length === 0) return '';
+    let html = '';
+    
+    // ★★★ 姫デコ ★★★
+    if (classGroups['姫デコ'].length > 0) {
+        html += '<div class="class-header himede"><h3>👑 姫デコ</h3></div>';
+        classGroups['姫デコ'].forEach(cast => {
+            html += renderCastCard(cast);
+        });
+    }
+    
+    // ★★★ 新人 ★★★
+    if (classGroups['新人'].length > 0) {
+        html += '<div class="class-header newbie"><h3>🆕 新人</h3></div>';
+        classGroups['新人'].forEach(cast => {
+            html += renderCastCard(cast);
+        });
+    }
+    
+    // ★★★ 通常（あいうえお順でグループ化） ★★★
+    if (classGroups['通常'].length > 0) {
+        const kanaGroups = {};
+        classGroups['通常'].forEach(cast => {
+            const group = getKanaGroup(cast.name);
+            if (!kanaGroups[group]) {
+                kanaGroups[group] = [];
+            }
+            kanaGroups[group].push(cast);
+        });
         
-        return `
-            <div class="kana-group">
-                <div class="kana-group-header">${group}</div>
-                ${casts.map(cast => {
-                    // クラスバッジ
-                    let classBadge = '';
-                    if (cast.class === '姫デコ') {
-                        classBadge = '<span class="class-badge himedeco">姫デコ</span>';
-                    } else if (cast.class === '新人') {
-                        classBadge = '<span class="class-badge newbie">新人</span>';
-                    }
-                    
-                    // メイン店舗バッジ
-                    let mainBadge = '';
-                    if (cast.mainStore) {
-                        const storeNames = {
-                            'delidosu': 'でりどす',
-                            'anecan': 'アネキャン',
-                            'ainoshizuku': 'しずく'
-                        };
-                        const storeName = storeNames[cast.mainStore] || '';
-                        if (storeName) {
-                            mainBadge = `<span class="main-store-badge ${cast.mainStore}">${storeName}</span>`;
-                        }
-                    }
-                    
-                    return `
-                        <div class="cast-item ${cast.checked === '済' ? 'checked' : ''}" data-name="${cast.name}">
-                            <div class="cast-header">
-                                <div class="cast-info">
-                                    <input type="checkbox" class="cast-checkbox" 
-                                           ${cast.checked === '済' ? 'checked' : ''} 
-                                           onchange="toggleCheck('${cast.name}', this.checked)">
-                                    <span class="cast-name">${cast.name}</span>
-                                    ${classBadge}
-                                    ${mainBadge}
-                                </div>
-                                <button class="btn-edit-small" onclick="showEditModal('${cast.name}')">編集</button>
-                            </div>
-                            <div class="cast-buttons">
-                                <button class="btn-link btn-delidosu btn-small" 
-                                        onclick="window.open('${cast.delidosuUrl}', '_blank')"
-                                        ${!cast.delidosuUrl ? 'disabled' : ''}>
-                                    ${cast.delidosuUrl ? 'でりどす' : '未登録'}
-                                </button>
-                                <button class="btn-link btn-anecan btn-small" 
-                                        onclick="window.open('${cast.anecanUrl}', '_blank')"
-                                        ${!cast.anecanUrl ? 'disabled' : ''}>
-                                    ${cast.anecanUrl ? 'アネキャン' : '未登録'}
-                                </button>
-                                <button class="btn-link btn-ainoshizuku btn-small" 
-                                        onclick="window.open('${cast.ainoshizukuUrl}', '_blank')"
-                                        ${!cast.ainoshizukuUrl ? 'disabled' : ''}>
-                                    ${cast.ainoshizukuUrl ? '愛のしずく' : '未登録'}
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                }).join('')}
-            </div>
-        `;
-    }).join('');
+        const groupOrder = ['あ', 'か', 'さ', 'た', 'な', 'は', 'ま', 'や', 'ら', 'わ', 'その他'];
+        groupOrder.forEach(group => {
+            if (kanaGroups[group] && kanaGroups[group].length > 0) {
+                html += `<div class="class-header"><h3>📋 ${group}行</h3></div>`;
+                kanaGroups[group].forEach(cast => {
+                    html += renderCastCard(cast);
+                });
+            }
+        });
+    }
     
+    listElement.innerHTML = html;
     console.log('renderAllCastList: 描画完了');
 }
 
+/**
+ * キャストカードを生成（シフト一覧と同じレイアウト）
+ */
+function renderCastCard(cast) {
+    // メイン店舗バッジ
+    let mainBadge = '';
+    if (cast.mainStore) {
+        const storeNames = {
+            'delidosu': 'でりどす',
+            'anecan': 'アネキャン',
+            'ainoshizuku': 'しずく'
+        };
+        const storeName = storeNames[cast.mainStore] || '';
+        if (storeName) {
+            mainBadge = `<span class="main-store-badge ${cast.mainStore}">${storeName}</span>`;
+        }
+    }
+    
+    return `
+        <div class="shift-item ${cast.checked === '済' ? 'checked' : ''}" data-name="${cast.name}">
+            <div class="shift-header">
+                <div class="shift-info">
+                    <input type="checkbox" class="shift-checkbox" 
+                           ${cast.checked === '済' ? 'checked' : ''} 
+                           onchange="toggleCheck('${cast.name}', event)">
+                    <span class="shift-name">${cast.name}</span>
+                    ${mainBadge}
+                </div>
+            </div>
+            <div class="shift-buttons">
+                <button class="btn-link btn-delidosu" 
+                        onclick="window.open('${cast.delidosuUrl}', '_blank')"
+                        ${!cast.delidosuUrl ? 'disabled' : ''}>
+                    ${cast.delidosuUrl ? 'でりどす' : '未登録'}
+                </button>
+                <button class="btn-link btn-anecan" 
+                        onclick="window.open('${cast.anecanUrl}', '_blank')"
+                        ${!cast.anecanUrl ? 'disabled' : ''}>
+                    ${cast.anecanUrl ? 'アネキャン' : '未登録'}
+                </button>
+                <button class="btn-link btn-ainoshizuku" 
+                        onclick="window.open('${cast.ainoshizukuUrl}', '_blank')"
+                        ${!cast.ainoshizukuUrl ? 'disabled' : ''}>
+                    ${cast.ainoshizukuUrl ? '愛のしずく' : '未登録'}
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+
 function filterAllCastList() {
     const searchText = document.getElementById('all-search-input').value.toLowerCase();
-    const items = document.querySelectorAll('.cast-item');
+    const items = document.querySelectorAll('#all-cast-list .shift-item');
     
     items.forEach(item => {
         const name = item.dataset.name.toLowerCase();
@@ -601,7 +638,13 @@ function filterAllCastList() {
 // チェック機能
 // ===============================
 
-async function toggleCheck(name, checked) {
+async function toggleCheck(name, event) {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    const checkbox = event.target;
+    const checked = checkbox.checked;
+    
     try {
         const response = await fetch(`${API_URL}?action=updateCheckStatus`, {
             method: 'POST',
@@ -614,26 +657,26 @@ async function toggleCheck(name, checked) {
         const result = await response.json();
         
         if (result.success) {
-            // ★★★ シフトデータを更新 ★★★
+            // シフトデータを更新
             const shiftIndex = shiftData.findIndex(s => s.name === name);
             if (shiftIndex !== -1) {
                 shiftData[shiftIndex].checked = checked ? '済' : '';
             }
             
-            // ★★★ URL管理データを更新 ★★★
+            // URL管理データを更新
             const urlIndex = urlData.findIndex(u => u.name === name);
             if (urlIndex !== -1) {
                 urlData[urlIndex].checked = checked ? '済' : '';
             }
             
-            // ★★★ 両方の画面を再描画 ★★★
-            renderShiftList();
-            renderAllCastList();
+            console.log(`toggleCheck: ${name} の状態を ${checked ? 'チェック' : 'チェック解除'} に更新しました`);
         } else {
+            checkbox.checked = !checked;
             throw new Error(result.error);
         }
     } catch (error) {
         console.error('チェック更新エラー:', error);
+        checkbox.checked = !checked;
         showToast('チェック状態の更新に失敗しました', 'error');
     }
 }
