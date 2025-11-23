@@ -224,8 +224,8 @@ function readExcelFile(file) {
                 const data = new Uint8Array(e.target.result);
                 console.log('readExcelFile: データサイズ', data.length);
                 
-                const workbook = XLSX.read(data, { type: 'array' });
-                console.log('readExcelFile: ワークブック読み込み完了');
+                const workbook = XLSX.read(data, { type: 'array', cellDates: false });
+                console.log('readExcelFile: ワークブック読み込み完了（シリアル値モード）');
                 console.log('シート名:', workbook.SheetNames);
                 
                 const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -278,28 +278,41 @@ function readExcelFile(file) {
 function formatTime(timeValue) {
     if (!timeValue) return '';
     
+    console.log('formatTime: 入力値 =', timeValue, '型 =', typeof timeValue);
+    
     // 既に "HH:MM" 形式の場合はそのまま返す
     if (typeof timeValue === 'string' && /^\d{1,2}:\d{2}$/.test(timeValue)) {
         return timeValue;
     }
     
     // ★★★ ISO 8601形式（例: "1899-12-29T16:00:00.000Z"）の場合 ★★★
+    // XLSXライブラリがISO形式で返す場合、UTCなのでJST（+9時間）に変換
     if (typeof timeValue === 'string' && timeValue.includes('T')) {
-        const date = new Date(timeValue);
-        const hours = date.getUTCHours().toString().padStart(2, '0');
-        const minutes = date.getUTCMinutes().toString().padStart(2, '0');
-        return `${hours}:${minutes}`;
+        try {
+            const date = new Date(timeValue);
+            // ローカル時刻（JST）として取得
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            const result = `${hours}:${minutes}`;
+            console.log('formatTime: ISO形式 → JST変換 =', result);
+            return result;
+        } catch (e) {
+            console.error('formatTime: ISO形式の変換エラー', e);
+        }
     }
     
-    // Excelシリアルナンバーの場合
+    // Excelシリアルナンバーの場合（最も確実な方法）
     if (typeof timeValue === 'number') {
         const totalMinutes = Math.round(timeValue * 24 * 60);
         const hours = Math.floor(totalMinutes / 60) % 24;
         const minutes = totalMinutes % 60;
-        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+        const result = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+        console.log('formatTime: シリアル値変換 =', result);
+        return result;
     }
     
     // それ以外は文字列化
+    console.log('formatTime: 文字列化 =', String(timeValue));
     return String(timeValue);
 }
 
@@ -421,9 +434,6 @@ function renderShiftList() {
     });
     
     listElement.innerHTML = mergedData.map(shift => {
-        // ★★★ 時刻を適切にフォーマット ★★★
-        const formattedTime = formatTime(shift.time);
-        
         // ★★★ メイン店舗バッジの生成 ★★★
         let mainBadge = '';
         if (shift.mainStore) {
@@ -437,6 +447,9 @@ function renderShiftList() {
                 mainBadge = `<span class="main-store-badge ${shift.mainStore}">${storeName}</span>`;
             }
         }
+        
+        // ★★★ 時刻をフォーマット（ISO形式対応） ★★★
+        const formattedTime = formatTime(shift.time);
         
         return `
             <div class="shift-item ${shift.checked === '済' ? 'checked' : ''}">
@@ -619,7 +632,6 @@ function renderCastCard(cast) {
     `;
 }
 
-
 function filterAllCastList() {
     const searchText = document.getElementById('all-search-input').value.toLowerCase();
     const items = document.querySelectorAll('#all-cast-list .shift-item');
@@ -657,13 +669,13 @@ async function toggleCheck(name, event) {
         const result = await response.json();
         
         if (result.success) {
-            // シフトデータを更新
+            // ★★★ シフトデータを更新 ★★★
             const shiftIndex = shiftData.findIndex(s => s.name === name);
             if (shiftIndex !== -1) {
                 shiftData[shiftIndex].checked = checked ? '済' : '';
             }
             
-            // URL管理データを更新
+            // ★★★ URL管理データを更新 ★★★
             const urlIndex = urlData.findIndex(u => u.name === name);
             if (urlIndex !== -1) {
                 urlData[urlIndex].checked = checked ? '済' : '';
