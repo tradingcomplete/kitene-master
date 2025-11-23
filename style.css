@@ -264,7 +264,7 @@ body {
 
 .shift-buttons {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 10px;
 }
 
@@ -288,6 +288,11 @@ body {
 
 .btn-anecan {
     background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+    color: white;
+}
+
+.btn-ainoshizuku {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
 }
 
