@@ -10,6 +10,7 @@ let shiftData = [];
 let urlData = [];
 let currentEditName = null;
 let currentDeleteName = null;
+let currentShiftDate = '';
 
 // ===============================
 // 初期化
@@ -21,7 +22,14 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('XLSXライブラリ:', typeof XLSX !== 'undefined' ? '読み込み済み' : '未読み込み');
     
     // Excelアップロードイベント
-    document.getElementById('excel-upload').addEventListener('change', handleExcelUpload);
+    document.getElementById('excel-upload').addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            handleExcelUpload(file);
+        }
+        // ファイル入力をリセット
+        event.target.value = '';
+    });
     
     // データの読み込み
     console.log('初期データをロード中...');
@@ -99,11 +107,14 @@ async function loadUrlData() {
             urlData = result.data;
             console.log('loadUrlData: データ件数', urlData.length);
             renderUrlList();
+            return result.data; // 戻り値を追加
         } else {
             console.error('loadUrlData: エラー:', result.error);
+            return []; // エラー時は空配列を返す
         }
     } catch (error) {
         console.error('loadUrlData: 例外:', error);
+        return []; // 例外時も空配列を返す
     }
 }
 
@@ -111,44 +122,48 @@ async function loadUrlData() {
 // Excelアップロード
 // ===============================
 
-async function handleExcelUpload(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    
-    console.log('=== デバッグ: Excelアップロード開始 ===');
-    console.log('ファイル名:', file.name);
-    console.log('ファイルサイズ:', file.size, 'bytes');
-    
-    showLoading(true);
-    
+async function handleExcelUpload(file) {
     try {
+        console.log('=== デバッグ: Excelアップロード開始 ===');
+        console.log('ファイル名:', file.name);
+        console.log('ファイルサイズ:', file.size, 'bytes');
+        
+        showLoading();
+        
+        // ステップ1: Excelファイルを読み込み
         console.log('ステップ1: Excelファイルを読み込み中...');
         const shiftData = await readExcelFile(file);
         console.log('ステップ1完了: データ件数', shiftData.length);
         console.log('読み込んだデータ:', shiftData);
         
-        // ファイル名から日付を抽出
-        const fileName = file.name;
-        const dateMatch = fileName.match(/(\d{8})/);
-        if (dateMatch) {
-            const dateStr = dateMatch[1];
-            const year = dateStr.substring(0, 4);
-            const month = dateStr.substring(4, 6);
-            const day = dateStr.substring(6, 8);
-            document.getElementById('date-display').textContent = `📅 ${year}年${month}月${day}日のシフト`;
-            console.log('日付抽出:', year, month, day);
+        if (!shiftData || shiftData.length === 0) {
+            throw new Error('出勤予定のデータが見つかりませんでした');
         }
         
-        // ステップ2: URL管理データを取得
-        console.log('ステップ2: URL管理データ取得中...');
-        await loadUrlData();
+        // 日付を抽出
+        const dateMatch = file.name.match(/(\d{4})(\d{2})(\d{2})/);
+        if (dateMatch) {
+            const [, year, month, day] = dateMatch;
+            console.log('日付抽出:', year, month, day);
+            currentShiftDate = `${year}年${month}月${day}日`;
+        }
+        
+        // ★★★ ステップ2: URL管理データを取得（追加） ★★★
+        console.log('ステップ2: URL管理データを取得中...');
+        const urlData = await loadUrlData();
         console.log('ステップ2完了: URL管理データ取得完了', urlData.length, '件');
         
-        // ステップ3: 各従業員のURLを照合
+        // ★★★ ステップ3: URL照合（追加） ★★★
         console.log('ステップ3: URL照合中...');
         const dataWithUrls = shiftData.map(employee => {
             // 源氏名で照合
             const urlInfo = urlData.find(u => u.name === employee.name);
+            
+            if (urlInfo) {
+                console.log(`URL照合成功: ${employee.name} → でりどす: ${urlInfo.delidosuUrl ? 'あり' : 'なし'}, アネキャン: ${urlInfo.anecanUrl ? 'あり' : 'なし'}, 愛のしずく: ${urlInfo.ainoshizukuUrl ? 'あり' : 'なし'}`);
+            } else {
+                console.log(`URL照合失敗: ${employee.name} → URL管理に未登録`);
+            }
             
             return {
                 ...employee,
@@ -158,25 +173,24 @@ async function handleExcelUpload(event) {
             };
         });
         console.log('ステップ3完了: URL照合完了');
+        console.log('URL付きデータ:', dataWithUrls);
         
-        // ステップ4: URL情報も含めてスプレッドシートに保存
+        // ステップ4: Googleスプレッドシートにアップロード（URL情報も含む）
         console.log('ステップ4: Googleスプレッドシートにアップロード中...');
         console.log('API URL:', API_URL);
         await uploadShiftData(dataWithUrls);
         console.log('ステップ4完了: アップロード成功');
         
-        showToast('Excelファイルをアップロードしました', 'success');
+        // ステップ5: データをリロード
+        await loadShiftData();
+        
+        hideLoading();
         console.log('=== デバッグ: アップロード完了 ===');
+        
     } catch (error) {
-        console.error('=== エラー詳細 ===');
-        console.error('エラーメッセージ:', error.message);
-        console.error('エラースタック:', error.stack);
-        console.error('エラーオブジェクト:', error);
-        showToast('エラー: ' + error.message, 'error');
-    } finally {
-        showLoading(false);
-        // ファイル入力をリセット
-        event.target.value = '';
+        console.error('Excelアップロードエラー:', error);
+        hideLoading();
+        alert(`エラーが発生しました: ${error.message}`);
     }
 }
 
@@ -612,13 +626,17 @@ function showLoading(show) {
     const shiftList = document.getElementById('shift-list');
     const emptyState = document.getElementById('empty-state');
     
-    if (show) {
+    if (show === undefined || show === true) {
         loading.style.display = 'block';
         shiftList.style.display = 'none';
         emptyState.style.display = 'none';
     } else {
         loading.style.display = 'none';
     }
+}
+
+function hideLoading() {
+    showLoading(false);
 }
 
 function showToast(message, type = 'success') {
