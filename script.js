@@ -285,12 +285,11 @@ function formatTime(timeValue) {
         return timeValue;
     }
     
-    // ★★★ ISO 8601形式（例: "1899-12-29T16:00:00.000Z"）の場合 ★★★
-    // XLSXライブラリがISO形式で返す場合、UTCなのでJST（+9時間）に変換
+    // ★★★ ISO 8601形式の場合 - JSTとして取得 ★★★
     if (typeof timeValue === 'string' && timeValue.includes('T')) {
         try {
             const date = new Date(timeValue);
-            // ローカル時刻（JST）として取得
+            // getHours()でローカル時刻（JST）として取得
             const hours = date.getHours().toString().padStart(2, '0');
             const minutes = date.getMinutes().toString().padStart(2, '0');
             const result = `${hours}:${minutes}`;
@@ -301,7 +300,7 @@ function formatTime(timeValue) {
         }
     }
     
-    // Excelシリアルナンバーの場合（最も確実な方法）
+    // Excelシリアルナンバーの場合（最も確実）
     if (typeof timeValue === 'number') {
         const totalMinutes = Math.round(timeValue * 24 * 60);
         const hours = Math.floor(totalMinutes / 60) % 24;
@@ -317,8 +316,20 @@ function formatTime(timeValue) {
 }
 
 function parseTime(timeStr) {
+    if (!timeStr) return 0;
     const [hours, minutes] = timeStr.split(':').map(Number);
-    return hours * 60 + minutes;
+    
+    // ★★★ 深夜営業ルール: 0:00～9:59は翌日深夜として扱う ★★★
+    // 10:00～23:59 → そのまま
+    // 0:00～9:59 → +24時間（翌日深夜）
+    let adjustedHours = hours;
+    if (hours >= 0 && hours < 10) {
+        adjustedHours = hours + 24;  // 翌日深夜として扱う
+    }
+    
+    const totalMinutes = adjustedHours * 60 + minutes;
+    console.log(`parseTime: ${timeStr} → ${adjustedHours}:${minutes} (${totalMinutes}分)`);
+    return totalMinutes;
 }
 
 // ===============================
@@ -434,6 +445,9 @@ function renderShiftList() {
     });
     
     listElement.innerHTML = mergedData.map(shift => {
+        // ★★★ 時刻を適切にフォーマット ★★★
+        const formattedTime = formatTime(shift.time);
+        
         // ★★★ メイン店舗バッジの生成 ★★★
         let mainBadge = '';
         if (shift.mainStore) {
@@ -447,9 +461,6 @@ function renderShiftList() {
                 mainBadge = `<span class="main-store-badge ${shift.mainStore}">${storeName}</span>`;
             }
         }
-        
-        // ★★★ 時刻をフォーマット（ISO形式対応） ★★★
-        const formattedTime = formatTime(shift.time);
         
         return `
             <div class="shift-item ${shift.checked === '済' ? 'checked' : ''}">
@@ -632,6 +643,7 @@ function renderCastCard(cast) {
     `;
 }
 
+
 function filterAllCastList() {
     const searchText = document.getElementById('all-search-input').value.toLowerCase();
     const items = document.querySelectorAll('#all-cast-list .shift-item');
@@ -669,13 +681,13 @@ async function toggleCheck(name, event) {
         const result = await response.json();
         
         if (result.success) {
-            // ★★★ シフトデータを更新 ★★★
+            // シフトデータを更新
             const shiftIndex = shiftData.findIndex(s => s.name === name);
             if (shiftIndex !== -1) {
                 shiftData[shiftIndex].checked = checked ? '済' : '';
             }
             
-            // ★★★ URL管理データを更新 ★★★
+            // URL管理データを更新
             const urlIndex = urlData.findIndex(u => u.name === name);
             if (urlIndex !== -1) {
                 urlData[urlIndex].checked = checked ? '済' : '';
