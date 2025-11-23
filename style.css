@@ -605,13 +605,18 @@ body {
 .form-select {
     width: 100%;
     padding: 12px 16px;
+    background: var(--bg-secondary);
     border: 2px solid var(--border-color);
-    background: var(--bg-color);
-    color: var(--text-primary);
     border-radius: var(--radius-sm);
-    font-size: 0.95rem;
-    transition: all 0.3s ease;
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-family: inherit;
     cursor: pointer;
+    transition: all 0.2s;
+}
+
+.form-select:hover {
+    border-color: var(--primary-color);
 }
 
 .form-select:focus {
@@ -623,8 +628,8 @@ body {
 /* ラベルとチェックボックスの横並び */
 .label-with-checkbox {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    justify-content: space-between;
     margin-bottom: 8px;
 }
 
@@ -638,15 +643,15 @@ body {
 .main-checkbox-label {
     display: flex;
     align-items: center;
-    gap: 6px;
     cursor: pointer;
-    padding: 4px 8px;
+    padding: 4px 10px;
+    background: rgba(99, 102, 241, 0.1);
     border-radius: var(--radius-sm);
-    transition: all 0.3s ease;
+    transition: all 0.2s;
 }
 
 .main-checkbox-label:hover {
-    background: rgba(99, 102, 241, 0.1);
+    background: rgba(99, 102, 241, 0.2);
 }
 
 .main-store-checkbox {
@@ -657,9 +662,10 @@ body {
 }
 
 .main-checkbox-text {
+    margin-left: 6px;
     font-size: 0.85rem;
-    color: var(--text-secondary);
     font-weight: 600;
+    color: var(--primary-color);
 }
 
 /* ===== 空状態 ===== */
@@ -714,51 +720,64 @@ body {
 .main-store-badge {
     display: inline-block;
     padding: 3px 10px;
-    margin-left: 8px;
     border-radius: 12px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: white;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-left: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    vertical-align: middle;
 }
 
-/* 店舗別カラー */
 .main-store-badge.delidosu {
-    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+    color: #fff;
 }
 
 .main-store-badge.anecan {
     background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+    color: #fff;
 }
 
 .main-store-badge.ainoshizuku {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+    color: #fff;
 }
 
 /* ===== クラスヘッダー（全キャストタブ用） ===== */
 .class-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 15px;
-    margin-bottom: 10px;
-    margin-top: 20px;
-    font-weight: 700;
-    font-size: 1.1rem;
+    background: var(--card-bg);
+    padding: 15px 20px;
+    border-radius: var(--radius-md);
+    margin-bottom: 15px;
     border-left: 4px solid var(--primary-color);
-    background: rgba(99, 102, 241, 0.1);
-    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-md);
 }
 
+.class-header h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+/* 姫デコヘッダー */
 .class-header.himede {
-    border-left-color: #ffd700;
-    background: rgba(255, 215, 0, 0.1);
+    border-left-color: #fbbf24;
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(245, 158, 11, 0.05) 100%);
 }
 
+.class-header.himede h3 {
+    color: #fbbf24;
+}
+
+/* 新人ヘッダー */
 .class-header.newbie {
-    border-left-color: #10b981;
-    background: rgba(16, 185, 129, 0.1);
+    border-left-color: #34d399;
+    background: linear-gradient(135deg, rgba(52, 211, 153, 0.1) 0%, rgba(16, 185, 129, 0.05) 100%);
+}
+
+.class-header.newbie h3 {
+    color: #34d399;
 }
 
 .class-header.kana-group {
