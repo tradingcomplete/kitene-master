@@ -242,12 +242,12 @@ async function uploadShiftData(data) {
         console.log('uploadShiftData: リクエスト送信中...');
         console.log('送信データ:', JSON.stringify({ data: data }));
         
-        const response = await fetch(`${API_URL}?action=updateShiftData`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ data: data })
+        // データをBase64エンコードしてGETパラメータとして送信（CORS回避）
+        const dataStr = JSON.stringify({ data: data });
+        const encodedData = encodeURIComponent(dataStr);
+        
+        const response = await fetch(`${API_URL}?action=updateShiftData&postData=${encodedData}`, {
+            method: 'GET'
         });
         
         console.log('uploadShiftData: レスポンス受信');
@@ -333,12 +333,11 @@ function renderShiftList() {
 
 async function toggleCheck(name, checked) {
     try {
-        const response = await fetch(`${API_URL}?action=updateCheckStatus`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ name: name, checked: checked })
+        const dataStr = JSON.stringify({ name: name, checked: checked });
+        const encodedData = encodeURIComponent(dataStr);
+        
+        const response = await fetch(`${API_URL}?action=updateCheckStatus&postData=${encodedData}`, {
+            method: 'GET'
         });
         
         const result = await response.json();
@@ -503,13 +502,11 @@ async function saveUrlData() {
     
     try {
         const action = currentEditName ? 'updateUrlData' : 'addUrlData';
+        const dataStr = JSON.stringify(data);
+        const encodedData = encodeURIComponent(dataStr);
         
-        const response = await fetch(`${API_URL}?action=${action}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(data)
+        const response = await fetch(`${API_URL}?action=${action}&postData=${encodedData}`, {
+            method: 'GET'
         });
         
         const result = await response.json();
@@ -536,12 +533,11 @@ async function confirmDelete() {
     if (!currentDeleteName) return;
     
     try {
-        const response = await fetch(`${API_URL}?action=deleteUrlData`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ name: currentDeleteName })
+        const dataStr = JSON.stringify({ name: currentDeleteName });
+        const encodedData = encodeURIComponent(dataStr);
+        
+        const response = await fetch(`${API_URL}?action=deleteUrlData&postData=${encodedData}`, {
+            method: 'GET'
         });
         
         const result = await response.json();
