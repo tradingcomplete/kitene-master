@@ -194,7 +194,8 @@ function readExcelFile(file) {
                         time: formatTime(row['出勤時間']),
                         status: row['シフト状態'] || '',
                         delidosuName: row['でりどす'] || '',
-                        anecanName: row['アネキャン'] || ''
+                        anecanName: row['アネキャン'] || '',
+                        ainoshizukuName: row['人妻本舗愛のしずく'] || ''
                     }))
                     .sort((a, b) => {
                         // 時間順にソート
@@ -296,6 +297,7 @@ function renderShiftList() {
         const urlInfo = urlData.find(u => u.name === shift.name);
         const delidosuUrl = urlInfo?.delidosuUrl || '';
         const anecanUrl = urlInfo?.anecanUrl || '';
+        const ainoshizukuUrl = urlInfo?.ainoshizukuUrl || '';
         const checked = shift.checked === '済';
         
         return `
@@ -320,6 +322,10 @@ function renderShiftList() {
                     ${anecanUrl 
                         ? `<a href="${anecanUrl}" target="_blank" class="btn-link btn-anecan">アネキャン</a>`
                         : `<button class="btn-link btn-anecan" disabled>アネキャン (未登録)</button>`
+                    }
+                    ${ainoshizukuUrl 
+                        ? `<a href="${ainoshizukuUrl}" target="_blank" class="btn-link btn-ainoshizuku">愛の雫</a>`
+                        : `<button class="btn-link btn-ainoshizuku" disabled>愛の雫 (未登録)</button>`
                     }
                 </div>
             </div>
@@ -409,6 +415,18 @@ function renderUrlList() {
                         ${url.anecanUrl || '未設定'}
                     </div>
                 </div>
+                <div class="url-row">
+                    <div class="url-label">愛の雫名</div>
+                    <div class="url-value ${url.ainoshizukuName ? '' : 'empty'}">
+                        ${url.ainoshizukuName || '未設定'}
+                    </div>
+                </div>
+                <div class="url-row">
+                    <div class="url-label">愛の雫URL</div>
+                    <div class="url-value ${url.ainoshizukuUrl ? '' : 'empty'}">
+                        ${url.ainoshizukuUrl || '未設定'}
+                    </div>
+                </div>
             </div>
         </div>
     `).join('');
@@ -445,6 +463,8 @@ function showAddModal() {
     document.getElementById('modal-deli-url').value = '';
     document.getElementById('modal-ane-name').value = '';
     document.getElementById('modal-ane-url').value = '';
+    document.getElementById('modal-aino-name').value = '';
+    document.getElementById('modal-aino-url').value = '';
     
     document.getElementById('url-modal').classList.add('active');
 }
@@ -462,6 +482,8 @@ function showEditModal(name) {
     document.getElementById('modal-deli-url').value = urlInfo.delidosuUrl || '';
     document.getElementById('modal-ane-name').value = urlInfo.anecanName || '';
     document.getElementById('modal-ane-url').value = urlInfo.anecanUrl || '';
+    document.getElementById('modal-aino-name').value = urlInfo.ainoshizukuName || '';
+    document.getElementById('modal-aino-url').value = urlInfo.ainoshizukuUrl || '';
     
     document.getElementById('url-modal').classList.add('active');
 }
@@ -497,7 +519,9 @@ async function saveUrlData() {
         delidosuName: document.getElementById('modal-deli-name').value.trim(),
         delidosuUrl: document.getElementById('modal-deli-url').value.trim(),
         anecanName: document.getElementById('modal-ane-name').value.trim(),
-        anecanUrl: document.getElementById('modal-ane-url').value.trim()
+        anecanUrl: document.getElementById('modal-ane-url').value.trim(),
+        ainoshizukuName: document.getElementById('modal-aino-name').value.trim(),
+        ainoshizukuUrl: document.getElementById('modal-aino-url').value.trim()
     };
     
     try {
