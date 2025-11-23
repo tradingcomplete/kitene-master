@@ -31,6 +31,20 @@ document.addEventListener('DOMContentLoaded', () => {
         event.target.value = '';
     });
     
+    // ★★★ メイン店舗チェックボックスの排他制御を追加 ★★★
+    document.querySelectorAll('.main-store-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                // 他のチェックボックスを外す
+                document.querySelectorAll('.main-store-checkbox').forEach(cb => {
+                    if (cb !== e.target) {
+                        cb.checked = false;
+                    }
+                });
+            }
+        });
+    });
+    
     // データの読み込み
     console.log('初期データをロード中...');
     loadAllData();
@@ -55,9 +69,14 @@ function showView(viewName) {
     if (viewName === 'shift') {
         document.getElementById('shift-view').classList.add('active');
         document.querySelector('.nav-btn:nth-child(1)').classList.add('active');
+    } else if (viewName === 'all') {
+        // ★★★ 全キャストタブを追加 ★★★
+        document.getElementById('all-view').classList.add('active');
+        document.querySelector('.nav-btn:nth-child(2)').classList.add('active');
+        renderAllCastList();
     } else if (viewName === 'url') {
         document.getElementById('url-view').classList.add('active');
-        document.querySelector('.nav-btn:nth-child(2)').classList.add('active');
+        document.querySelector('.nav-btn:nth-child(3)').classList.add('active');
         loadUrlData();
     }
 }
@@ -256,21 +275,69 @@ function readExcelFile(file) {
     });
 }
 
-function formatTime(time) {
-    if (typeof time === 'string') return time;
-    if (typeof time === 'number') {
-        // Excelの時間形式(0.5 = 12:00)を変換
-        const hours = Math.floor(time * 24);
-        const minutes = Math.floor((time * 24 * 60) % 60);
-        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+function formatTime(timeValue) {
+    if (!timeValue) return '';
+    
+    // 既に "HH:MM" 形式の場合はそのまま返す
+    if (typeof timeValue === 'string' && /^\d{1,2}:\d{2}$/.test(timeValue)) {
+        return timeValue;
     }
-    return '';
+    
+    // ★★★ ISO 8601形式（例: "1899-12-29T16:00:00.000Z"）の場合 ★★★
+    if (typeof timeValue === 'string' && timeValue.includes('T')) {
+        const date = new Date(timeValue);
+        const hours = date.getUTCHours().toString().padStart(2, '0');
+        const minutes = date.getUTCMinutes().toString().padStart(2, '0');
+        return `${hours}:${minutes}`;
+    }
+    
+    // Excelシリアルナンバーの場合
+    if (typeof timeValue === 'number') {
+        const totalMinutes = Math.round(timeValue * 24 * 60);
+        const hours = Math.floor(totalMinutes / 60) % 24;
+        const minutes = totalMinutes % 60;
+        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    }
+    
+    // それ以外は文字列化
+    return String(timeValue);
 }
 
 function parseTime(timeStr) {
     const [hours, minutes] = timeStr.split(':').map(Number);
     return hours * 60 + minutes;
 }
+
+// ===============================
+// あいうえお順グループ化
+// ===============================
+
+const KANA_GROUPS = {
+    'あ': ['あ', 'い', 'う', 'え', 'お'],
+    'か': ['か', 'き', 'く', 'け', 'こ', 'が', 'ぎ', 'ぐ', 'げ', 'ご'],
+    'さ': ['さ', 'し', 'す', 'せ', 'そ', 'ざ', 'じ', 'ず', 'ぜ', 'ぞ'],
+    'た': ['た', 'ち', 'つ', 'て', 'と', 'だ', 'ぢ', 'づ', 'で', 'ど'],
+    'な': ['な', 'に', 'ぬ', 'ね', 'の'],
+    'は': ['は', 'ひ', 'ふ', 'へ', 'ほ', 'ば', 'び', 'ぶ', 'べ', 'ぼ', 'ぱ', 'ぴ', 'ぷ', 'ぺ', 'ぽ'],
+    'ま': ['ま', 'み', 'む', 'め', 'も'],
+    'や': ['や', 'ゆ', 'よ'],
+    'ら': ['ら', 'り', 'る', 'れ', 'ろ'],
+    'わ': ['わ', 'を', 'ん']
+};
+
+function getKanaGroup(name) {
+    if (!name) return 'その他';
+    const firstChar = name.charAt(0);
+    
+    for (const [group, chars] of Object.entries(KANA_GROUPS)) {
+        if (chars.includes(firstChar)) {
+            return group;
+        }
+    }
+    
+    return 'その他';
+}
+
 
 async function uploadShiftData(data) {
     try {
@@ -316,16 +383,16 @@ function renderShiftList() {
     console.log('renderShiftList: シフトリスト描画開始');
     console.log('シフトデータ件数:', shiftData.length);
     
-    const container = document.getElementById('shift-list');
+    const listElement = document.getElementById('shift-list');
     const emptyElement = document.getElementById('empty-state');
     
-    if (!container) {
+    if (!listElement) {
         console.error('shift-list要素が見つかりません');
         return;
     }
     
     if (shiftData.length === 0) {
-        container.style.display = 'none';
+        listElement.style.display = 'none';
         emptyElement.style.display = 'block';
         if (document.getElementById('date-display')) {
             document.getElementById('date-display').textContent = '';
@@ -333,94 +400,201 @@ function renderShiftList() {
         return;
     }
     
-    container.style.display = 'flex';
+    listElement.style.display = 'flex';
     emptyElement.style.display = 'none';
-    container.innerHTML = '';
     
-    shiftData.forEach((shift, index) => {
-        console.log(`従業員 ${index + 1}: ${shift.name}, でりどすURL: ${shift.delidosuUrl || 'なし'}, アネキャンURL: ${shift.anecanUrl || 'なし'}, 愛のしずくURL: ${shift.ainoshizukuUrl || 'なし'}`);
-        
-        const item = document.createElement('div');
-        item.className = `shift-item ${shift.checked === '済' ? 'checked' : ''}`;
-        
-        // シフトヘッダー
-        const header = document.createElement('div');
-        header.className = 'shift-header';
-        
-        // 従業員情報
-        const info = document.createElement('div');
-        info.className = 'shift-info';
-        
-        const nameSpan = document.createElement('span');
-        nameSpan.className = 'shift-name';
-        nameSpan.textContent = shift.name;
-        
-        const timeSpan = document.createElement('span');
-        timeSpan.className = 'shift-time';
-        timeSpan.textContent = shift.time;
-        
-        info.appendChild(nameSpan);
-        info.appendChild(timeSpan);
-        
-        // チェックボックス
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.className = 'shift-checkbox';
-        checkbox.checked = shift.checked === '済';
-        checkbox.addEventListener('change', () => toggleCheck(shift.name, checkbox.checked));
-        
-        header.appendChild(info);
-        header.appendChild(checkbox);
-        
-        // URLボタンコンテナ
-        const buttonsDiv = document.createElement('div');
-        buttonsDiv.className = 'shift-buttons';
-        
-        // でりどすボタン
-        const delidosuBtn = document.createElement('button');
-        delidosuBtn.className = 'btn-link btn-delidosu';
-        if (shift.delidosuUrl && shift.delidosuUrl.trim() !== '') {
-            delidosuBtn.textContent = 'でりどす';
-            delidosuBtn.onclick = () => window.open(shift.delidosuUrl, '_blank');
-        } else {
-            delidosuBtn.textContent = 'でりどす (未登録)';
-            delidosuBtn.disabled = true;
-        }
-        
-        // アネキャンボタン
-        const anecanBtn = document.createElement('button');
-        anecanBtn.className = 'btn-link btn-anecan';
-        if (shift.anecanUrl && shift.anecanUrl.trim() !== '') {
-            anecanBtn.textContent = 'アネキャン';
-            anecanBtn.onclick = () => window.open(shift.anecanUrl, '_blank');
-        } else {
-            anecanBtn.textContent = 'アネキャン (未登録)';
-            anecanBtn.disabled = true;
-        }
-        
-        // 愛のしずくボタン
-        const ainoshizukuBtn = document.createElement('button');
-        ainoshizukuBtn.className = 'btn-link btn-ainoshizuku';
-        if (shift.ainoshizukuUrl && shift.ainoshizukuUrl.trim() !== '') {
-            ainoshizukuBtn.textContent = '愛のしずく';
-            ainoshizukuBtn.onclick = () => window.open(shift.ainoshizukuUrl, '_blank');
-        } else {
-            ainoshizukuBtn.textContent = '愛のしずく (未登録)';
-            ainoshizukuBtn.disabled = true;
-        }
-        
-        buttonsDiv.appendChild(delidosuBtn);
-        buttonsDiv.appendChild(anecanBtn);
-        buttonsDiv.appendChild(ainoshizukuBtn);
-        
-        // 要素を組み立て
-        item.appendChild(header);
-        item.appendChild(buttonsDiv);
-        
-        container.appendChild(item);
+    // ★★★ URL管理データを取得してチェック状態を反映 ★★★
+    const mergedData = shiftData.map(shift => {
+        const urlInfo = urlData.find(u => u.name === shift.name);
+        return {
+            ...shift,
+            checked: urlInfo?.checked || '',
+            mainStore: urlInfo?.mainStore || ''
+        };
     });
     
+    // ★★★ 出勤時間順にソート ★★★
+    mergedData.sort((a, b) => {
+        if (a.time < b.time) return -1;
+        if (a.time > b.time) return 1;
+        return a.name.localeCompare(b.name, 'ja');
+    });
+    
+    listElement.innerHTML = mergedData.map(shift => {
+        // ★★★ メイン店舗バッジの生成 ★★★
+        let mainBadge = '';
+        if (shift.mainStore) {
+            const storeNames = {
+                'delidosu': 'でりどす',
+                'anecan': 'アネキャン',
+                'ainoshizuku': 'しずく'
+            };
+            const storeName = storeNames[shift.mainStore] || '';
+            if (storeName) {
+                mainBadge = `<span class="main-store-badge ${shift.mainStore}">${storeName}</span>`;
+            }
+        }
+        
+        return `
+            <div class="shift-item ${shift.checked === '済' ? 'checked' : ''}">
+                <div class="shift-header">
+                    <div class="shift-info">
+                        <input type="checkbox" class="shift-checkbox" 
+                               ${shift.checked === '済' ? 'checked' : ''} 
+                               onchange="toggleCheck('${shift.name}', this.checked)">
+                        <span class="shift-name">${shift.name}</span>
+                        <span class="shift-time">${shift.time}</span>
+                        ${mainBadge}
+                    </div>
+                </div>
+                <div class="shift-buttons">
+                    <button class="btn-link btn-delidosu" 
+                            onclick="window.open('${shift.delidosuUrl}', '_blank')"
+                            ${!shift.delidosuUrl ? 'disabled' : ''}>
+                        ${shift.delidosuUrl ? 'でりどす' : '未登録'}
+                    </button>
+                    <button class="btn-link btn-anecan" 
+                            onclick="window.open('${shift.anecanUrl}', '_blank')"
+                            ${!shift.anecanUrl ? 'disabled' : ''}>
+                        ${shift.anecanUrl ? 'アネキャン' : '未登録'}
+                    </button>
+                    <button class="btn-link btn-ainoshizuku" 
+                            onclick="window.open('${shift.ainoshizukuUrl}', '_blank')"
+                            ${!shift.ainoshizukuUrl ? 'disabled' : ''}>
+                        ${shift.ainoshizukuUrl ? '愛のしずく' : '未登録'}
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
     console.log('renderShiftList: 描画完了');
+}
+
+// ===============================
+// 全キャストリスト表示
+// ===============================
+
+function renderAllCastList() {
+    console.log('renderAllCastList: 全キャストリスト描画開始');
+    console.log('URLデータ件数:', urlData.length);
+    
+    const listElement = document.getElementById('all-cast-list');
+    const emptyElement = document.getElementById('all-empty-state');
+    
+    if (!listElement) {
+        console.error('all-cast-list要素が見つかりません');
+        return;
+    }
+    
+    if (urlData.length === 0) {
+        listElement.style.display = 'none';
+        if (emptyElement) emptyElement.style.display = 'block';
+        return;
+    }
+    
+    listElement.style.display = 'flex';
+    if (emptyElement) emptyElement.style.display = 'none';
+    
+    // あいうえお順にグループ化
+    const groupedData = {};
+    urlData.forEach(cast => {
+        const group = getKanaGroup(cast.name);
+        if (!groupedData[group]) {
+            groupedData[group] = [];
+        }
+        groupedData[group].push(cast);
+    });
+    
+    // 各グループ内で名前順にソート
+    Object.keys(groupedData).forEach(group => {
+        groupedData[group].sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+    });
+    
+    // HTML生成
+    const groupOrder = ['あ', 'か', 'さ', 'た', 'な', 'は', 'ま', 'や', 'ら', 'わ', 'その他'];
+    listElement.innerHTML = groupOrder.map(group => {
+        const casts = groupedData[group];
+        if (!casts || casts.length === 0) return '';
+        
+        return `
+            <div class="kana-group">
+                <div class="kana-group-header">${group}</div>
+                ${casts.map(cast => {
+                    // クラスバッジ
+                    let classBadge = '';
+                    if (cast.class === '姫デコ') {
+                        classBadge = '<span class="class-badge himedeco">姫デコ</span>';
+                    } else if (cast.class === '新人') {
+                        classBadge = '<span class="class-badge newbie">新人</span>';
+                    }
+                    
+                    // メイン店舗バッジ
+                    let mainBadge = '';
+                    if (cast.mainStore) {
+                        const storeNames = {
+                            'delidosu': 'でりどす',
+                            'anecan': 'アネキャン',
+                            'ainoshizuku': 'しずく'
+                        };
+                        const storeName = storeNames[cast.mainStore] || '';
+                        if (storeName) {
+                            mainBadge = `<span class="main-store-badge ${cast.mainStore}">${storeName}</span>`;
+                        }
+                    }
+                    
+                    return `
+                        <div class="cast-item ${cast.checked === '済' ? 'checked' : ''}" data-name="${cast.name}">
+                            <div class="cast-header">
+                                <div class="cast-info">
+                                    <input type="checkbox" class="cast-checkbox" 
+                                           ${cast.checked === '済' ? 'checked' : ''} 
+                                           onchange="toggleCheck('${cast.name}', this.checked)">
+                                    <span class="cast-name">${cast.name}</span>
+                                    ${classBadge}
+                                    ${mainBadge}
+                                </div>
+                                <button class="btn-edit-small" onclick="showEditModal('${cast.name}')">編集</button>
+                            </div>
+                            <div class="cast-buttons">
+                                <button class="btn-link btn-delidosu btn-small" 
+                                        onclick="window.open('${cast.delidosuUrl}', '_blank')"
+                                        ${!cast.delidosuUrl ? 'disabled' : ''}>
+                                    ${cast.delidosuUrl ? 'でりどす' : '未登録'}
+                                </button>
+                                <button class="btn-link btn-anecan btn-small" 
+                                        onclick="window.open('${cast.anecanUrl}', '_blank')"
+                                        ${!cast.anecanUrl ? 'disabled' : ''}>
+                                    ${cast.anecanUrl ? 'アネキャン' : '未登録'}
+                                </button>
+                                <button class="btn-link btn-ainoshizuku btn-small" 
+                                        onclick="window.open('${cast.ainoshizukuUrl}', '_blank')"
+                                        ${!cast.ainoshizukuUrl ? 'disabled' : ''}>
+                                    ${cast.ainoshizukuUrl ? '愛のしずく' : '未登録'}
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+    }).join('');
+    
+    console.log('renderAllCastList: 描画完了');
+}
+
+function filterAllCastList() {
+    const searchText = document.getElementById('all-search-input').value.toLowerCase();
+    const items = document.querySelectorAll('.cast-item');
+    
+    items.forEach(item => {
+        const name = item.dataset.name.toLowerCase();
+        if (name.includes(searchText)) {
+            item.style.display = 'block';
+        } else {
+            item.style.display = 'none';
+        }
+    });
 }
 
 // ===============================
@@ -440,11 +614,21 @@ async function toggleCheck(name, checked) {
         const result = await response.json();
         
         if (result.success) {
-            const index = shiftData.findIndex(s => s.name === name);
-            if (index !== -1) {
-                shiftData[index].checked = checked ? '済' : '';
+            // ★★★ シフトデータを更新 ★★★
+            const shiftIndex = shiftData.findIndex(s => s.name === name);
+            if (shiftIndex !== -1) {
+                shiftData[shiftIndex].checked = checked ? '済' : '';
             }
+            
+            // ★★★ URL管理データを更新 ★★★
+            const urlIndex = urlData.findIndex(u => u.name === name);
+            if (urlIndex !== -1) {
+                urlData[urlIndex].checked = checked ? '済' : '';
+            }
+            
+            // ★★★ 両方の画面を再描画 ★★★
             renderShiftList();
+            renderAllCastList();
         } else {
             throw new Error(result.error);
         }
@@ -549,12 +733,22 @@ function showAddModal() {
     document.getElementById('modal-title').textContent = 'URL情報を追加';
     document.getElementById('modal-name').value = '';
     document.getElementById('modal-name').disabled = false;
+    
+    // ★★★ クラスを初期値に設定 ★★★
+    document.getElementById('modal-class').value = '通常';
+    
+    // ★★★ 各店舗の情報をクリア ★★★
     document.getElementById('modal-deli-name').value = '';
     document.getElementById('modal-deli-url').value = '';
     document.getElementById('modal-ane-name').value = '';
     document.getElementById('modal-ane-url').value = '';
     document.getElementById('modal-aino-name').value = '';
     document.getElementById('modal-aino-url').value = '';
+    
+    // ★★★ メイン店舗チェックボックスをクリア ★★★
+    document.getElementById('modal-deli-main').checked = false;
+    document.getElementById('modal-ane-main').checked = false;
+    document.getElementById('modal-aino-main').checked = false;
     
     document.getElementById('url-modal').classList.add('active');
 }
@@ -568,12 +762,22 @@ function showEditModal(name) {
     document.getElementById('modal-title').textContent = 'URL情報を編集';
     document.getElementById('modal-name').value = urlInfo.name;
     document.getElementById('modal-name').disabled = true;
+    
+    // ★★★ クラスを設定 ★★★
+    document.getElementById('modal-class').value = urlInfo.class || '通常';
+    
+    // ★★★ 各店舗の情報を設定 ★★★
     document.getElementById('modal-deli-name').value = urlInfo.delidosuName || '';
     document.getElementById('modal-deli-url').value = urlInfo.delidosuUrl || '';
     document.getElementById('modal-ane-name').value = urlInfo.anecanName || '';
     document.getElementById('modal-ane-url').value = urlInfo.anecanUrl || '';
     document.getElementById('modal-aino-name').value = urlInfo.ainoshizukuName || '';
     document.getElementById('modal-aino-url').value = urlInfo.ainoshizukuUrl || '';
+    
+    // ★★★ メイン店舗チェックボックスを設定 ★★★
+    document.getElementById('modal-deli-main').checked = (urlInfo.mainStore === 'delidosu');
+    document.getElementById('modal-ane-main').checked = (urlInfo.mainStore === 'anecan');
+    document.getElementById('modal-aino-main').checked = (urlInfo.mainStore === 'ainoshizuku');
     
     document.getElementById('url-modal').classList.add('active');
 }
@@ -604,14 +808,26 @@ async function saveUrlData() {
         return;
     }
     
+    // ★★★ メイン店舗の判定 ★★★
+    let mainStore = '';
+    if (document.getElementById('modal-deli-main').checked) {
+        mainStore = 'delidosu';
+    } else if (document.getElementById('modal-ane-main').checked) {
+        mainStore = 'anecan';
+    } else if (document.getElementById('modal-aino-main').checked) {
+        mainStore = 'ainoshizuku';
+    }
+    
     const data = {
         name: name,
+        class: document.getElementById('modal-class').value, // ★★★ クラスを追加 ★★★
         delidosuName: document.getElementById('modal-deli-name').value.trim(),
         delidosuUrl: document.getElementById('modal-deli-url').value.trim(),
         anecanName: document.getElementById('modal-ane-name').value.trim(),
         anecanUrl: document.getElementById('modal-ane-url').value.trim(),
         ainoshizukuName: document.getElementById('modal-aino-name').value.trim(),
-        ainoshizukuUrl: document.getElementById('modal-aino-url').value.trim()
+        ainoshizukuUrl: document.getElementById('modal-aino-url').value.trim(),
+        mainStore: mainStore // ★★★ メイン店舗を追加 ★★★
     };
     
     try {
