@@ -313,58 +313,114 @@ async function uploadShiftData(data) {
 // ===============================
 
 function renderShiftList() {
-    const listElement = document.getElementById('shift-list');
+    console.log('renderShiftList: シフトリスト描画開始');
+    console.log('シフトデータ件数:', shiftData.length);
+    
+    const container = document.getElementById('shift-list');
     const emptyElement = document.getElementById('empty-state');
     
-    if (shiftData.length === 0) {
-        listElement.style.display = 'none';
-        emptyElement.style.display = 'block';
-        document.getElementById('date-display').textContent = '';
+    if (!container) {
+        console.error('shift-list要素が見つかりません');
         return;
     }
     
-    listElement.style.display = 'flex';
-    emptyElement.style.display = 'none';
+    if (shiftData.length === 0) {
+        container.style.display = 'none';
+        emptyElement.style.display = 'block';
+        if (document.getElementById('date-display')) {
+            document.getElementById('date-display').textContent = '';
+        }
+        return;
+    }
     
-    listElement.innerHTML = shiftData.map(shift => {
-        // URL管理データからURLを取得
-        const urlInfo = urlData.find(u => u.name === shift.name);
-        const delidosuUrl = urlInfo?.delidosuUrl || '';
-        const anecanUrl = urlInfo?.anecanUrl || '';
-        const ainoshizukuUrl = urlInfo?.ainoshizukuUrl || '';
-        const checked = shift.checked === '済';
+    container.style.display = 'flex';
+    emptyElement.style.display = 'none';
+    container.innerHTML = '';
+    
+    shiftData.forEach((shift, index) => {
+        console.log(`従業員 ${index + 1}: ${shift.name}, でりどすURL: ${shift.delidosuUrl || 'なし'}, アネキャンURL: ${shift.anecanUrl || 'なし'}, 愛のしずくURL: ${shift.ainoshizukuUrl || 'なし'}`);
         
-        return `
-            <div class="shift-item ${checked ? 'checked' : ''}">
-                <div class="shift-header">
-                    <div class="shift-info">
-                        <span class="shift-name">${shift.name}</span>
-                        <span class="shift-time">${shift.time}</span>
-                    </div>
-                    <input 
-                        type="checkbox" 
-                        class="shift-checkbox" 
-                        ${checked ? 'checked' : ''}
-                        onchange="toggleCheck('${shift.name}', this.checked)"
-                    >
-                </div>
-                <div class="shift-buttons">
-                    ${delidosuUrl 
-                        ? `<a href="${delidosuUrl}" target="_blank" class="btn-link btn-delidosu">でりどす</a>`
-                        : `<button class="btn-link btn-delidosu" disabled>でりどす (未登録)</button>`
-                    }
-                    ${anecanUrl 
-                        ? `<a href="${anecanUrl}" target="_blank" class="btn-link btn-anecan">アネキャン</a>`
-                        : `<button class="btn-link btn-anecan" disabled>アネキャン (未登録)</button>`
-                    }
-                    ${ainoshizukuUrl 
-                        ? `<a href="${ainoshizukuUrl}" target="_blank" class="btn-link btn-ainoshizuku">愛の雫</a>`
-                        : `<button class="btn-link btn-ainoshizuku" disabled>愛の雫 (未登録)</button>`
-                    }
-                </div>
-            </div>
-        `;
-    }).join('');
+        const item = document.createElement('div');
+        item.className = `shift-item ${shift.checked === '済' ? 'checked' : ''}`;
+        
+        // シフトヘッダー
+        const header = document.createElement('div');
+        header.className = 'shift-header';
+        
+        // 従業員情報
+        const info = document.createElement('div');
+        info.className = 'shift-info';
+        
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'shift-name';
+        nameSpan.textContent = shift.name;
+        
+        const timeSpan = document.createElement('span');
+        timeSpan.className = 'shift-time';
+        timeSpan.textContent = shift.time;
+        
+        info.appendChild(nameSpan);
+        info.appendChild(timeSpan);
+        
+        // チェックボックス
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'shift-checkbox';
+        checkbox.checked = shift.checked === '済';
+        checkbox.addEventListener('change', () => toggleCheck(shift.name, checkbox.checked));
+        
+        header.appendChild(info);
+        header.appendChild(checkbox);
+        
+        // URLボタンコンテナ
+        const buttonsDiv = document.createElement('div');
+        buttonsDiv.className = 'shift-buttons';
+        
+        // でりどすボタン
+        const delidosuBtn = document.createElement('button');
+        delidosuBtn.className = 'btn-link btn-delidosu';
+        if (shift.delidosuUrl && shift.delidosuUrl.trim() !== '') {
+            delidosuBtn.textContent = 'でりどす';
+            delidosuBtn.onclick = () => window.open(shift.delidosuUrl, '_blank');
+        } else {
+            delidosuBtn.textContent = 'でりどす (未登録)';
+            delidosuBtn.disabled = true;
+        }
+        
+        // アネキャンボタン
+        const anecanBtn = document.createElement('button');
+        anecanBtn.className = 'btn-link btn-anecan';
+        if (shift.anecanUrl && shift.anecanUrl.trim() !== '') {
+            anecanBtn.textContent = 'アネキャン';
+            anecanBtn.onclick = () => window.open(shift.anecanUrl, '_blank');
+        } else {
+            anecanBtn.textContent = 'アネキャン (未登録)';
+            anecanBtn.disabled = true;
+        }
+        
+        // 愛のしずくボタン
+        const ainoshizukuBtn = document.createElement('button');
+        ainoshizukuBtn.className = 'btn-link btn-ainoshizuku';
+        if (shift.ainoshizukuUrl && shift.ainoshizukuUrl.trim() !== '') {
+            ainoshizukuBtn.textContent = '愛のしずく';
+            ainoshizukuBtn.onclick = () => window.open(shift.ainoshizukuUrl, '_blank');
+        } else {
+            ainoshizukuBtn.textContent = '愛のしずく (未登録)';
+            ainoshizukuBtn.disabled = true;
+        }
+        
+        buttonsDiv.appendChild(delidosuBtn);
+        buttonsDiv.appendChild(anecanBtn);
+        buttonsDiv.appendChild(ainoshizukuBtn);
+        
+        // 要素を組み立て
+        item.appendChild(header);
+        item.appendChild(buttonsDiv);
+        
+        container.appendChild(item);
+    });
+    
+    console.log('renderShiftList: 描画完了');
 }
 
 // ===============================
