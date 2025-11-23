@@ -242,11 +242,11 @@ async function uploadShiftData(data) {
         console.log('uploadShiftData: リクエスト送信中...');
         console.log('送信データ件数:', data.length);
         
+        // シンプルリクエストにするため、Content-Type: text/plain を使用
         const response = await fetch(`${API_URL}?action=updateShiftData`, {
             method: 'POST',
-            mode: 'cors',
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'text/plain',
             },
             body: JSON.stringify({ data: data })
         });
@@ -335,9 +335,8 @@ async function toggleCheck(name, checked) {
     try {
         const response = await fetch(`${API_URL}?action=updateCheckStatus`, {
             method: 'POST',
-            mode: 'cors',
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'text/plain',
             },
             body: JSON.stringify({ name: name, checked: checked })
         });
@@ -506,9 +505,8 @@ async function saveUrlData() {
         
         const response = await fetch(`${API_URL}?action=${action}`, {
             method: 'POST',
-            mode: 'cors',
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'text/plain',
             },
             body: JSON.stringify(data)
         });
@@ -539,9 +537,8 @@ async function confirmDelete() {
     try {
         const response = await fetch(`${API_URL}?action=deleteUrlData`, {
             method: 'POST',
-            mode: 'cors',
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'text/plain',
             },
             body: JSON.stringify({ name: currentDeleteName })
         });
