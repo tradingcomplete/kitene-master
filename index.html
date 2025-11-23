@@ -21,6 +21,9 @@
             <button class="nav-btn active" onclick="showView('shift')">
                 📋 シフト一覧
             </button>
+            <button class="nav-btn" onclick="showView('all')">
+                👥 全キャスト
+            </button>
             <button class="nav-btn" onclick="showView('url')">
                 ⚙️ URL管理
             </button>
@@ -53,6 +56,23 @@
             <div id="empty-state" class="empty-state">
                 <p>📂</p>
                 <p>Excelファイルをアップロードしてください</p>
+            </div>
+        </div>
+
+        <!-- 全キャストビュー -->
+        <div id="all-view" class="view">
+            <!-- 検索バー -->
+            <div class="search-bar">
+                <input type="text" id="all-search-input" placeholder="🔍 源氏名で検索..." onkeyup="filterAllCastList()">
+            </div>
+
+            <!-- 全キャストリスト -->
+            <div id="all-cast-list" class="shift-list"></div>
+
+            <!-- 空状態 -->
+            <div id="all-empty-state" class="empty-state">
+                <p>📝</p>
+                <p>URL登録済みのキャストがいません</p>
             </div>
         </div>
 
@@ -89,7 +109,21 @@
                     <input type="text" id="modal-name" placeholder="例: うい">
                 </div>
                 <div class="form-group">
-                    <label>でりどす名</label>
+                    <label>クラス</label>
+                    <select id="modal-class" class="form-select">
+                        <option value="通常">通常</option>
+                        <option value="姫デコ">姫デコ</option>
+                        <option value="新人">新人</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="label-with-checkbox">
+                        <span>でりどす名</span>
+                        <label class="main-checkbox-label">
+                            <input type="checkbox" id="modal-deli-main" class="main-store-checkbox" data-store="delidosu">
+                            <span class="main-checkbox-text">メイン</span>
+                        </label>
+                    </label>
                     <input type="text" id="modal-deli-name" placeholder="例: うい">
                 </div>
                 <div class="form-group">
@@ -97,7 +131,13 @@
                     <input type="url" id="modal-deli-url" placeholder="https://...">
                 </div>
                 <div class="form-group">
-                    <label>アネキャン名</label>
+                    <label class="label-with-checkbox">
+                        <span>アネキャン名</span>
+                        <label class="main-checkbox-label">
+                            <input type="checkbox" id="modal-ane-main" class="main-store-checkbox" data-store="anecan">
+                            <span class="main-checkbox-text">メイン</span>
+                        </label>
+                    </label>
                     <input type="text" id="modal-ane-name" placeholder="例: すず">
                 </div>
                 <div class="form-group">
@@ -105,7 +145,13 @@
                     <input type="url" id="modal-ane-url" placeholder="https://...">
                 </div>
                 <div class="form-group">
-                    <label>愛のしずく名</label>
+                    <label class="label-with-checkbox">
+                        <span>愛のしずく名</span>
+                        <label class="main-checkbox-label">
+                            <input type="checkbox" id="modal-aino-main" class="main-store-checkbox" data-store="ainoshizuku">
+                            <span class="main-checkbox-text">メイン</span>
+                        </label>
+                    </label>
                     <input type="text" id="modal-aino-name" placeholder="例: まり">
                 </div>
                 <div class="form-group">
