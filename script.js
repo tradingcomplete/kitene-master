@@ -16,10 +16,15 @@ let currentDeleteName = null;
 // ===============================
 
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('=== キテネマスター 初期化開始 ===');
+    console.log('API URL:', API_URL);
+    console.log('XLSXライブラリ:', typeof XLSX !== 'undefined' ? '読み込み済み' : '未読み込み');
+    
     // Excelアップロードイベント
     document.getElementById('excel-upload').addEventListener('change', handleExcelUpload);
     
     // データの読み込み
+    console.log('初期データをロード中...');
     loadAllData();
 });
 
@@ -54,39 +59,51 @@ function showView(viewName) {
 // ===============================
 
 async function loadAllData() {
+    console.log('loadAllData: 全データロード開始');
     await loadShiftData();
     await loadUrlData();
+    console.log('loadAllData: 全データロード完了');
 }
 
 async function loadShiftData() {
     try {
+        console.log('loadShiftData: シフトデータ取得中...');
         const response = await fetch(`${API_URL}?action=getShiftData`);
+        console.log('loadShiftData: レスポンス受信', response.status);
+        
         const result = await response.json();
+        console.log('loadShiftData: レスポンス:', result);
         
         if (result.success) {
             shiftData = result.data;
+            console.log('loadShiftData: データ件数', shiftData.length);
             renderShiftList();
         } else {
-            console.error('シフトデータ取得エラー:', result.error);
+            console.error('loadShiftData: エラー:', result.error);
         }
     } catch (error) {
-        console.error('シフトデータ取得エラー:', error);
+        console.error('loadShiftData: 例外:', error);
     }
 }
 
 async function loadUrlData() {
     try {
+        console.log('loadUrlData: URL管理データ取得中...');
         const response = await fetch(`${API_URL}?action=getUrlData`);
+        console.log('loadUrlData: レスポンス受信', response.status);
+        
         const result = await response.json();
+        console.log('loadUrlData: レスポンス:', result);
         
         if (result.success) {
             urlData = result.data;
+            console.log('loadUrlData: データ件数', urlData.length);
             renderUrlList();
         } else {
-            console.error('URL管理データ取得エラー:', result.error);
+            console.error('loadUrlData: エラー:', result.error);
         }
     } catch (error) {
-        console.error('URL管理データ取得エラー:', error);
+        console.error('loadUrlData: 例外:', error);
     }
 }
 
@@ -98,10 +115,17 @@ async function handleExcelUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
     
+    console.log('=== デバッグ: Excelアップロード開始 ===');
+    console.log('ファイル名:', file.name);
+    console.log('ファイルサイズ:', file.size, 'bytes');
+    
     showLoading(true);
     
     try {
+        console.log('ステップ1: Excelファイルを読み込み中...');
         const data = await readExcelFile(file);
+        console.log('ステップ1完了: データ件数', data.length);
+        console.log('読み込んだデータ:', data);
         
         // ファイル名から日付を抽出
         const fileName = file.name;
@@ -112,15 +136,23 @@ async function handleExcelUpload(event) {
             const month = dateStr.substring(4, 6);
             const day = dateStr.substring(6, 8);
             document.getElementById('date-display').textContent = `📅 ${year}年${month}月${day}日のシフト`;
+            console.log('日付抽出:', year, month, day);
         }
         
         // データをアップロード
+        console.log('ステップ2: Googleスプレッドシートにアップロード中...');
+        console.log('API URL:', API_URL);
         await uploadShiftData(data);
+        console.log('ステップ2完了: アップロード成功');
         
         showToast('Excelファイルをアップロードしました', 'success');
+        console.log('=== デバッグ: アップロード完了 ===');
     } catch (error) {
-        console.error('Excelアップロードエラー:', error);
-        showToast('Excelファイルの読み込みに失敗しました', 'error');
+        console.error('=== エラー詳細 ===');
+        console.error('エラーメッセージ:', error.message);
+        console.error('エラースタック:', error.stack);
+        console.error('エラーオブジェクト:', error);
+        showToast('エラー: ' + error.message, 'error');
     } finally {
         showLoading(false);
         // ファイル入力をリセット
@@ -130,18 +162,33 @@ async function handleExcelUpload(event) {
 
 function readExcelFile(file) {
     return new Promise((resolve, reject) => {
+        console.log('readExcelFile: ファイル読み込み開始');
         const reader = new FileReader();
         
         reader.onload = (e) => {
             try {
+                console.log('readExcelFile: FileReader onload実行');
                 const data = new Uint8Array(e.target.result);
+                console.log('readExcelFile: データサイズ', data.length);
+                
                 const workbook = XLSX.read(data, { type: 'array' });
+                console.log('readExcelFile: ワークブック読み込み完了');
+                console.log('シート名:', workbook.SheetNames);
+                
                 const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
                 const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+                console.log('readExcelFile: JSON変換完了、行数:', jsonData.length);
+                console.log('最初の3行:', jsonData.slice(0, 3));
                 
                 // 「出勤予」のデータのみ抽出
                 const filteredData = jsonData
-                    .filter(row => row['シフト状態'] === '出勤予')
+                    .filter(row => {
+                        const isMatch = row['シフト状態'] === '出勤予';
+                        if (!isMatch) {
+                            console.log('フィルタアウト:', row['源氏名'], 'シフト状態:', row['シフト状態']);
+                        }
+                        return isMatch;
+                    })
                     .map(row => ({
                         name: row['源氏名'] || '',
                         time: formatTime(row['出勤時間']),
@@ -156,13 +203,20 @@ function readExcelFile(file) {
                         return timeA - timeB;
                     });
                 
+                console.log('readExcelFile: フィルタ後の件数', filteredData.length);
+                console.log('フィルタ後のデータ:', filteredData);
                 resolve(filteredData);
             } catch (error) {
+                console.error('readExcelFile: エラー', error);
                 reject(error);
             }
         };
         
-        reader.onerror = () => reject(new Error('ファイル読み込みエラー'));
+        reader.onerror = () => {
+            console.error('readExcelFile: FileReaderエラー');
+            reject(new Error('ファイル読み込みエラー'));
+        };
+        
         reader.readAsArrayBuffer(file);
     });
 }
@@ -185,6 +239,9 @@ function parseTime(timeStr) {
 
 async function uploadShiftData(data) {
     try {
+        console.log('uploadShiftData: リクエスト送信中...');
+        console.log('送信データ:', JSON.stringify({ data: data }));
+        
         const response = await fetch(`${API_URL}?action=updateShiftData`, {
             method: 'POST',
             headers: {
@@ -193,14 +250,25 @@ async function uploadShiftData(data) {
             body: JSON.stringify({ data: data })
         });
         
-        const result = await response.json();
+        console.log('uploadShiftData: レスポンス受信');
+        console.log('ステータスコード:', response.status);
+        console.log('ステータステキスト:', response.statusText);
+        
+        const resultText = await response.text();
+        console.log('レスポンステキスト:', resultText);
+        
+        const result = JSON.parse(resultText);
+        console.log('パース済みレスポンス:', result);
         
         if (result.success) {
+            console.log('uploadShiftData: 成功、シフトデータをリロード');
             await loadShiftData();
         } else {
+            console.error('uploadShiftData: APIエラー', result.error);
             throw new Error(result.error);
         }
     } catch (error) {
+        console.error('uploadShiftData: 例外発生', error);
         throw error;
     }
 }
